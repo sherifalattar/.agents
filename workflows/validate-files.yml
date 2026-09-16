@@ -1,0 +1,70 @@
+name: File Integrity Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-files:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Check HTML file integrity
+        run: |
+          echo "🔍 Scanning HTML files for integrity..."
+          
+          # Find all .html files
+          html_files=$(find . -name "*.html" -type f)
+          
+          failed=0
+          for file in $html_files; do
+            echo "Checking: $file"
+            
+            # Check file is not empty
+            if [ ! -s "$file" ]; then
+              echo "  ✗ File is empty"
+              failed=$((failed + 1))
+              continue
+            fi
+            
+            # Check for doctype
+            if ! grep -q "<!doctype html" "$file"; then
+              echo "  ⚠ Warning: Missing or malformed doctype"
+            fi
+            
+            # Check for closing html tag
+            if ! grep -q "</html>" "$file"; then
+              echo "  ✗ Missing closing </html> tag"
+              failed=$((failed + 1))
+              continue
+            fi
+            
+            # Check for meta charset
+            if ! grep -q "charset" "$file"; then
+              echo "  ⚠ Warning: Missing charset declaration"
+            fi
+            
+            # Check file size (basic truncation detection)
+            size=$(wc -c < "$file")
+            if [ "$size" -lt 1000 ]; then
+              echo "  ⚠ Warning: File unusually small ($size bytes)"
+            else
+              echo "  ✓ OK ($size bytes)"
+            fi
+          done
+          
+          if [ $failed -gt 0 ]; then
+            echo ""
+            echo "❌ $failed file(s) have integrity issues"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All HTML files passed integrity check"
