@@ -27,7 +27,7 @@ jobs:
           # All modules documented in README.md
           declare -a modules=(
             "index.html|Cinematic Opening"
-            "pyramds.html|The Pyramids"
+            "pyramids.html|The Pyramids"
             "observatory.html|The Observatory"
             "drgs-compendium.html|DRGs Compendium"
             "denial-codes.html|Denial Codes"
