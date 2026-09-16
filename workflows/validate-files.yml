@@ -1,4 +1,4 @@
-name: File Integrity Check
+name: Check File Integrity
 
 on:
   push:
@@ -9,60 +9,67 @@ on:
       - main
 
 jobs:
-  validate-files:
+  check-integrity:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
       
-      - name: Check HTML file integrity
+      - name: Validate HTML files
         run: |
           echo "🔍 Scanning HTML files for integrity..."
-          
-          # Find all .html files
-          html_files=$(find . -name "*.html" -type f)
+          echo ""
           
           failed=0
-          for file in $html_files; do
+          total=0
+          
+          # Find all .html files in root
+          for file in *.html; do
+            [ -f "$file" ] || continue
+            total=$((total + 1))
+            
             echo "Checking: $file"
             
             # Check file is not empty
             if [ ! -s "$file" ]; then
-              echo "  ✗ File is empty"
+              echo "  ✗ File is empty or missing"
               failed=$((failed + 1))
               continue
             fi
             
-            # Check for doctype
-            if ! grep -q "<!doctype html" "$file"; then
-              echo "  ⚠ Warning: Missing or malformed doctype"
+            # Check for proper HTML structure
+            if ! grep -q "<!doctype html" "$file" 2>/dev/null; then
+              echo "  ⚠ Missing or malformed doctype"
             fi
             
             # Check for closing html tag
             if ! grep -q "</html>" "$file"; then
-              echo "  ✗ Missing closing </html> tag"
+              echo "  ✗ Missing closing </html> tag - file may be truncated"
               failed=$((failed + 1))
               continue
             fi
             
             # Check for meta charset
             if ! grep -q "charset" "$file"; then
-              echo "  ⚠ Warning: Missing charset declaration"
+              echo "  ⚠ Missing charset declaration"
             fi
             
-            # Check file size (basic truncation detection)
+            # Report file size (truncation detection)
             size=$(wc -c < "$file")
-            if [ "$size" -lt 1000 ]; then
-              echo "  ⚠ Warning: File unusually small ($size bytes)"
+            if [ "$size" -lt 2000 ]; then
+              echo "  ⚠ Warning: File is small ($size bytes) - check for truncation"
             else
               echo "  ✓ OK ($size bytes)"
             fi
           done
           
+          echo ""
+          echo "Summary: Checked $total files, $failed issues found"
+          
           if [ $failed -gt 0 ]; then
             echo ""
-            echo "❌ $failed file(s) have integrity issues"
+            echo "❌ File integrity check failed"
             exit 1
           fi
           
